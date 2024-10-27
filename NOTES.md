@@ -3,7 +3,6 @@ Example code this is hacked together from:
 - Teensy SD Datalogger
 - HC-05_ATMode
 
-
 Calculated data output rate:
 - Sensors probably can't output better than 5 sig figs (can test this)
 - we are logging x,y,z for orientation, angular velocity, acceleration 
@@ -17,7 +16,7 @@ TODO:
 - consider logging relative timestamps for easier reading of logfiles by hand
 - attempt to check for liftoff by checking if linear acceleration is over threshold
 - do we care about magnetometer data at all? (remember sensor already does data fusion for us)
-- update burn time to be accurate
+- update burn time to be more accurate
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
@@ -26,7 +25,7 @@ NB:
 - probably want to log in Euler angle (degrees), but do calculations with quaternions, 
   could just log both, idk if there's a better way to handle this
 - check if pinouts are configured correctly
-
+- NAND Flash is enabled by defining macro NANDFLASH
 
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
