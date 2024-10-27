@@ -27,8 +27,8 @@
 
    Sensor Connections
    ===========
-   Connect SCL to analog 18 
-   Connect SDA to analog 19
+   Connect SCL to analog 18 (default 5)
+   Connect SDA to analog 19 (default 4)
    Connect VDD to 3.3-5V DC
    Connect GROUND to common ground
    SD Connections
@@ -47,9 +47,6 @@
 /* Set the delay between fresh samples */
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 100;
 
-SCL_pin = 18;
-SDA_pin = 19;
-Wire.begin(SDA_pin, SCL_pin);
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
