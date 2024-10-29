@@ -62,9 +62,14 @@ const int chipSelect = BUILTIN_SDCARD;  // hopefully works
 #endif
 
 SoftwareSerial BTSerial(7, 8);  // RX | TX
-bool is_logging = false;
+bool isArmed = false;
+bool hasLaunched = false;
 unsigned long startTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side
+
+float sqLen(float v[3]) {
+  return v[0]*v[0]+v[1]*v[1]+v[2]*v[2];
+}
 
 void setup(void) {
     Serial.begin(115200);
@@ -172,7 +177,15 @@ void loop(void) {
     Serial.println("--");
     dataBuf += "--\n";
 
-    if (is_logging && (millis() - startTime) < TIME_TO_CHUTE) {
+    if (!hasLaunched && isArmed) {
+      float *accel = linearAccelData.acceleration.v;
+      if (sqLen(accel) > 100) { // units are SI (ms^-2)
+        hasLaunched = true;
+        startTime = millis();
+      }
+    }
+
+    if (hasLaunched && (millis() - startTime < TIME_TO_CHUTE)) {
 #ifdef NANDFLASH
         File dataFile = myfs.open("datalog.txt", FILE_WRITE);
 #else
@@ -192,16 +205,12 @@ void loop(void) {
 
     if (BTSerial.available()) {
         char c = BTSerial.read();
-        if (c == 'l') {
-            is_logging = !is_logging;
-            if (is_logging) {
-                startTime = millis();
-            }
-            Serial.print("Logging: ");
-            Serial.println(is_logging);
-            BTSerial.write("Logging: ");
-            BTSerial.write(is_logging);
-            BTSerial.write('\n');
+        if (c == 'a') { 
+            isArmed = !isArmed;
+            Serial.print("Armed: ");
+            Serial.println(isArmed);
+            BTSerial.print("Armed: ");
+            BTSerial.println(isArmed);
         }
     }
 
