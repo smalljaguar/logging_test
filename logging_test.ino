@@ -5,6 +5,7 @@
 #include <utility/imumaths.h>
 
 /* for logging */
+#define NOWRITE
 #ifdef NANDFLASH
 #include <LittleFS.h>
 #else
@@ -48,7 +49,7 @@
 */
 
 /* Set the delay between fresh samples */
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 100;
+uint16_t BNO055_SAMPLERATE_DELAY_MS = 1000;
 
 // Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
@@ -63,12 +64,16 @@ const int chipSelect = BUILTIN_SDCARD;  // hopefully works
 
 SoftwareSerial BTSerial(7, 8);  // RX | TX
 bool isArmed = false;
-bool hasLaunched = false;
+bool hasLaunched = true;
 unsigned long startTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side
 
 float sqLen(float v[3]) {
   return v[0]*v[0]+v[1]*v[1]+v[2]*v[2];
+}
+
+float len(float v[3]) {
+  return sqrt(sqLen(v));
 }
 
 void setup(void) {
@@ -82,8 +87,7 @@ void setup(void) {
 
     /* Initialise the sensor */
     if (!bno.begin()) {
-        Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-        while (1);
+        Serial.println("No BNO055 detected ... Check your wiring or I2C ADDR!");
     }
 
     BTSerial.begin(38400); /* HC-05 default speed in AT command more */
@@ -100,12 +104,13 @@ void setup(void) {
 #else
     if (!SD.begin(chipSelect)) {
         Serial.println("Card failed, or not present");
-        while (1) {
-            // No SD card, so don't do anything more - stay stuck here
-        }
+        #ifndef NOWRITE
+        while (1)
+        #endif
     }
     Serial.println("card initialized.");
 #endif
+
 
     delay(1000);
 }
@@ -152,6 +157,7 @@ void loop(void) {
         dataBuf += String(system);
     }
     if (gyro < 3) {
+      
         dataBuf += " GyroCal: ";
         dataBuf += String(gyro);
     }
@@ -174,23 +180,24 @@ void loop(void) {
     // Serial.print(" Mag=");
     // Serial.println(mag);
 
-    Serial.println("--");
     dataBuf += "--\n";
 
     if (!hasLaunched && isArmed) {
       float *accel = linearAccelData.acceleration.v;
-      if (sqLen(accel) > 100) { // units are SI (ms^-2)
+      if (len(accel) > 10) { // units are SI (ms^-2)
         hasLaunched = true;
         startTime = millis();
       }
     }
 
     if (hasLaunched && (millis() - startTime < TIME_TO_CHUTE)) {
-#ifdef NANDFLASH
+      Serial.println(dataBuf); // emergency print
+#ifndef NOWRITE
+  #ifdef NANDFLASH
         File dataFile = myfs.open("datalog.txt", FILE_WRITE);
-#else
+  #else
         File dataFile = SD.open("datalog.txt", FILE_WRITE);
-#endif
+  #endif
         // if the file is available, write to it:
         if (dataFile) {
             dataFile.println(dataBuf);
@@ -201,6 +208,7 @@ void loop(void) {
             // if the file isn't open, pop up an error:
             Serial.println("error opening datalog.txt");
         }
+#endif
     }
 
     if (BTSerial.available()) {

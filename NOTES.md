@@ -4,13 +4,13 @@ Example code this is hacked together from:
 - HC-05_ATMode
 
 Calculated data output rate:
-- Sensors probably can't output better than 5 sig figs (can test this)
+- Sensors outputs 3 sig figs
 - we are logging x,y,z for orientation, angular velocity, acceleration 
 - sample rate upper bound of 100Hz
-- so we have 3*3 numbers, which each take 8 bytes => 72 bytes
-- add overhead of labels, say another 8 bytes per event => 72 + 24 = 96 bytes
-- 96 bytes, 100 Hz => 10KB/s upper bound
-- 5 minutes flight time (say) => no more than 3MB of logs expected
+- so we have 3*3 numbers, which each take 4 bytes => 36 bytes
+- add overhead of labels, say another 8 bytes per event => 36 + 24 = 60 bytes
+- 60 bytes, 100 Hz => 6KB/s upper bound
+- 5 minutes flight time (say) => no more than 2MB of logs expected
 
 TODO:
 - consider logging relative timestamps for easier reading of logfiles by hand
@@ -59,3 +59,22 @@ Output Data:
         Three axis of gravitational acceleration (minus any movement) in m/s^2
     Temperature (1Hz)
         Ambient temperature in degrees celsius
+
+
+
+--
+example data
+
+SysCal: 2 AccelCal: 0 MagCal: 0
+
+Orient:	x= 0.94 |	y= -1.00 |	z= 6.12
+
+Gyro:	x= -0.00 |	y= -0.00 |	z= 0.00
+
+Linear:	x= 0.01 |	y= 0.13 |	z= 0.00
+
+Mag:	x= 4.88 |	y= 33.38 |	z= -34.75
+
+Accl:	x= -0.16 |	y= -0.90 |	z= 9.74
+
+
