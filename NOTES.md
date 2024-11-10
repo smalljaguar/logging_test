@@ -13,10 +13,11 @@ Calculated data output rate:
 - 5 minutes flight time (say) => no more than 2MB of logs expected
 
 TODO:
-- consider logging relative timestamps for easier reading of logfiles by hand
-- attempt to check for liftoff by checking if linear acceleration is over threshold
-- do we care about magnetometer data at all? (remember sensor already does data fusion for us)
+- log relative timestamps for easier reading of logfiles by hand
 - update burn time to be more accurate
+- add pressure sensor support
+- log in CSV format
+- measure space left on disk
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
@@ -78,3 +79,5 @@ Mag:	x= 4.88 |	y= 33.38 |	z= -34.75
 Accl:	x= -0.16 |	y= -0.90 |	z= 9.74
 
 
+
+https://www.pjrc.com/teensy/td_uart.html

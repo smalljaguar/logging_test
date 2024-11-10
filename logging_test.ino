@@ -1,20 +1,18 @@
 /* for sensors */
 #include <Adafruit_BNO055.h>
 #include <Adafruit_Sensor.h>
+#include <Adafruit_DPS310.h>
 #include <Wire.h>
 #include <utility/imumaths.h>
 
 /* for logging */
-#define NOWRITE
+// #define NOWRITE
 #ifdef NANDFLASH
 #include <LittleFS.h>
 #else
 #include <SD.h>
 #include <SPI.h>
 #endif
-
-/* for bluetooth */
-#include <SoftwareSerial.h>
 
 /*
   Stolen from adafruit examples
@@ -51,9 +49,12 @@
 /* Set the delay between fresh samples */
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 1000;
 
-// Check I2C device address and correct line below (by default address is 0x29 or 0x28)
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+
+Adafruit_DPS310 dps;
+Adafruit_Sensor *dps_temp;
+Adafruit_Sensor *dps_pressure;
 
 #ifdef NANDFLASH
 LittleFS_SPINAND myfs;
@@ -62,12 +63,13 @@ const int chipSelect = 4;
 const int chipSelect = BUILTIN_SDCARD;  // hopefully works
 #endif
 
-SoftwareSerial BTSerial(7, 8);  // RX | TX
-bool isArmed = false;
-bool hasLaunched = true;
+File dataFile;
+
+bool isArmed = false; // can change for debug purposes, NEEDS to be false for launch
+bool hasLaunched = false;
 unsigned long startTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side
-
+unsigned long cnt = 0;
 float sqLen(float v[3]) {
   return v[0]*v[0]+v[1]*v[1]+v[2]*v[2];
 }
@@ -79,8 +81,11 @@ float len(float v[3]) {
 void setup(void) {
     Serial.begin(115200);
 
-    while (!Serial)
-        delay(10); /* wait for serial port to open */
+    // while (!Serial)
+    //     delay(10); /* wait for serial port to open */
+    // waiting is actually unnecessary, as when the board is used in flight
+    // the serial port will not be connected, so we can just start the loop
+
 
     Serial.println("Orientation Sensor Initialising");
     Serial.println("");
@@ -90,7 +95,34 @@ void setup(void) {
         Serial.println("No BNO055 detected ... Check your wiring or I2C ADDR!");
     }
 
-    BTSerial.begin(38400); /* HC-05 default speed in AT command more */
+    dps_temp = dps.getTemperatureSensor();
+    dps_pressure = dps.getPressureSensor();
+
+    if (! dps.begin_I2C(0x77, &Wire)) {
+      Serial.println("Bayes DPS not detected, go FY }:)");
+      while (1);
+    }
+    dps.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
+    dps.configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
+
+
+    Serial2.begin(9600);
+    startTime = millis();
+    while (!Serial2) {
+        if (millis() - startTime > 5000) {
+            Serial.println("Failed to connect to Serial2!");
+            // blink board LED
+            while (1) {
+                digitalWrite(LED_BUILTIN, HIGH);
+                delay(100);
+                digitalWrite(LED_BUILTIN, LOW);
+                delay(100);
+            }
+            break;
+        }
+        delay(10);
+};
+
 
 #ifdef NANDFLASH
     // SPI port param is optional
@@ -105,21 +137,43 @@ void setup(void) {
     if (!SD.begin(chipSelect)) {
         Serial.println("Card failed, or not present");
         #ifndef NOWRITE
-        while (1)
+        while (1);
         #endif
     }
+    // File dataFile = SD.open("datalog.txt", FILE_WRITE);
+    // dataFile.println("\nSTART NEW LOGGING RUN");
     Serial.println("card initialized.");
 #endif
+
+    String filename = "datalog-";
+    int fileCnt = 0;
+  #ifdef NANDFLASH
+        
+        while (!myfs.exists((filename+String(fileCnt)+".txt").c_str())){
+            fileCnt++;
+        }
+        dataFile = myfs.open(filename.c_str(), FILE_WRITE);
+  #else
+        while (!SD.exists((filename+String(fileCnt)+".txt").c_str())){
+            fileCnt++;
+        }
+        dataFile = SD.open(filename.c_str(), FILE_WRITE);
+  #endif
+
 
 
     delay(1000);
 }
 
 void loop(void) {
+    
     String dataBuf = "";
-
+    dataBuf += "time:";
+    dataBuf += String(BNO055_SAMPLERATE_DELAY_MS*cnt) + '\n';
+    cnt++;
     // could add VECTOR_ACCELEROMETER, VECTOR_MAGNETOMETER,VECTOR_GRAVITY...
-    sensors_event_t orientationData, angVelocityData, linearAccelData, magnetometerData, accelerometerData, gravityData;
+    sensors_event_t orientationData, angVelocityData, linearAccelData,
+    magnetometerData, accelerometerData, gravityData, pressureData, tempData;
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
     bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
@@ -152,39 +206,48 @@ void loop(void) {
     */
     uint8_t system, gyro, accel, mag = 0;
     bno.getCalibration(&system, &gyro, &accel, &mag);
-    if (system < 3) {
-        dataBuf += "SysCal: ";
-        dataBuf += String(system);
-    }
-    if (gyro < 3) {
-      
-        dataBuf += " GyroCal: ";
-        dataBuf += String(gyro);
-    }
-    if (accel < 3) {
-        dataBuf += " AccelCal: ";
-        dataBuf += String(accel);
-    }
-    if (mag < 3) {
-        dataBuf += " MagCal: ";
-        dataBuf += String(mag);
-    }
-    dataBuf += '\n';
-    // Serial.println();
-    // Serial.print("Calibration: Sys=");
-    // Serial.print(system);
-    // Serial.print(" Gyro=");
-    // Serial.print(gyro);
-    // Serial.print(" Accel=");
-    // Serial.print(accel);
-    // Serial.print(" Mag=");
-    // Serial.println(mag);
+    String calib = "";
+    calib += "Calibration:\n";
+    calib += "System:";
+    calib += String(system);
+    calib += "\tGyro:";
+    calib += String(gyro);
+    calib += "\tAccel:";
+    calib += String(accel);
+    calib += "\tMag:";
+    calib += String(mag);
+    Serial2.println(calib);
+    Serial.println(calib);
 
-    dataBuf += "--\n";
+    dataBuf += calib + '\n';
+    float temperature = 0;
+    float pressure = 0;
+    if (dps.temperatureAvailable()) {
+        dps_temp->getEvent(&tempData);
+        temperature = tempData.temperature;
+    }
+    if (dps.pressureAvailable()) {
+        dps_pressure->getEvent(&pressureData);
+        pressure = pressureData.pressure;
+    }
+
+    dataBuf += "temp: ";
+    dataBuf += String(temperature);
+    dataBuf += "\tPressure:";
+    dataBuf += String(pressure);
+    dataBuf += "\n";
+
+    float *acceleration = linearAccelData.acceleration.v;
+    Serial2.print("Accel magnitude: ");
+    Serial.print("Accel magnitude: ");
+    Serial2.println(len(acceleration));
+    Serial.println(len(acceleration));
+
+    dataBuf += "\n--\n";
 
     if (!hasLaunched && isArmed) {
       float *accel = linearAccelData.acceleration.v;
-      if (len(accel) > 10) { // units are SI (ms^-2)
+      if (len(accel) > 1) { // units are SI (ms^-2)
         hasLaunched = true;
         startTime = millis();
       }
@@ -193,32 +256,28 @@ void loop(void) {
     if (hasLaunched && (millis() - startTime < TIME_TO_CHUTE)) {
       Serial.println(dataBuf); // emergency print
 #ifndef NOWRITE
-  #ifdef NANDFLASH
-        File dataFile = myfs.open("datalog.txt", FILE_WRITE);
-  #else
-        File dataFile = SD.open("datalog.txt", FILE_WRITE);
-  #endif
         // if the file is available, write to it:
         if (dataFile) {
             dataFile.println(dataBuf);
-            dataFile.close();
+            dataFile.flush();
             // print to the serial port too:
             Serial.println(dataBuf);
         } else {
             // if the file isn't open, pop up an error:
-            Serial.println("error opening datalog.txt");
+            Serial.println("error opening file");
         }
 #endif
     }
 
-    if (BTSerial.available()) {
-        char c = BTSerial.read();
+    if (Serial2.available()) {
+        char c = Serial2.read();
+        Serial.print(c);
         if (c == 'a') { 
             isArmed = !isArmed;
-            Serial.print("Armed: ");
+            Serial.print("\nArmed: ");
             Serial.println(isArmed);
-            BTSerial.print("Armed: ");
-            BTSerial.println(isArmed);
+            Serial2.print("Armed: ");
+            Serial2.println(isArmed);
         }
     }
 
