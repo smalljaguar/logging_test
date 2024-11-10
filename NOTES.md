@@ -31,7 +31,6 @@ NB:
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
 - log getCalibration only when it's not 3 and/or it changes, and/or at a slower rate
-- open file in setup not loop, then flush instead of closing
 - preallocate estimated string len
 - truncate logged decimal places (second param of `String` is decimalPlaces)
 Medium optimisations:
