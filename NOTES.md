@@ -18,6 +18,7 @@ TODO:
 - add pressure sensor support
 - log in CSV format
 - measure space left on disk
+- Fix filename creation
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms

@@ -4,6 +4,7 @@
 #include <Adafruit_DPS310.h>
 #include <Wire.h>
 #include <utility/imumaths.h>
+#include <stdio.h>
 
 /* for logging */
 // #define NOWRITE
@@ -121,7 +122,8 @@ void setup(void) {
             break;
         }
         delay(10);
-};
+    };
+    Serial.println("Bluetooth connected");
 
 
 #ifdef NANDFLASH
@@ -145,21 +147,30 @@ void setup(void) {
     Serial.println("card initialized.");
 #endif
 
-    String filename = "datalog-";
+    char baseFilename[16] = "datalog-";
+    char filename[16];
     int fileCnt = 0;
   #ifdef NANDFLASH
-        
-        while (!myfs.exists((filename+String(fileCnt)+".txt").c_str())){
+        // TODO
+        do {
+            sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
             fileCnt++;
-        }
-        dataFile = myfs.open(filename.c_str(), FILE_WRITE);
+        }  while (myfs.exists(filename) && fileCnt < 50);
+        dataFile = myfs.open(filename, FILE_WRITE);
   #else
-        while (!SD.exists((filename+String(fileCnt)+".txt").c_str())){
+        do {
+            sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
             fileCnt++;
-        }
-        dataFile = SD.open(filename.c_str(), FILE_WRITE);
+        }  while (SD.exists(filename) && fileCnt < 50);
+        dataFile = SD.open(filename, FILE_WRITE);
   #endif
-
+  if (fileCnt > 50){
+    Serial.println("Are you sure you're okay with this many files?");
+  }
+  Serial.println("file opened, fileCnt=");
+  Serial.println(fileCnt);
+  Serial.print("filename=");
+  Serial.println(filename);
 
 
     delay(1000);
