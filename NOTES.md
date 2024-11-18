@@ -1,3 +1,12 @@
+CALIBRATION:
+
+Gyroscope: The device must be standing still in any position
+Magnetometer: In the past 'figure 8' motions were required in 3 dimensions, but with recent devices fast magnetic compensation takes place with sufficient normal movement of the device
+Accelerometer: The BNO055 must be placed in 6 standing positions for +X, -X, +Y, -Y, +Z and -Z.  This is the most onerous sensor to calibrate, but the best solution to generate the calibration data is to find a block of wood or similar object, and place the sensor on each of the 6 'faces' of the block, which will help to maintain sensor alignment during the calibration process.  You should still be able to get reasonable quality data from the BNO055, however, even if the accelerometer isn't entirely or perfectly calibrated.
+
+
+
+
 Example code this is hacked together from:
 - BNO055 read_all_data
 - Teensy SD Datalogger
@@ -18,7 +27,7 @@ TODO:
 - add pressure sensor support
 - log in CSV format
 - measure space left on disk
-- Fix filename creation
+- store calibration with get/setSensorOffsets
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms

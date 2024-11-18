@@ -49,6 +49,7 @@
 
 /* Set the delay between fresh samples */
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 1000;
+float BNO055_SAMPLERATE_DELAY_S = BNO055_SAMPLERATE_DELAY_MS / 1000;
 
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
@@ -69,7 +70,7 @@ File dataFile;
 bool isArmed = false; // can change for debug purposes, NEEDS to be false for launch
 bool hasLaunched = false;
 unsigned long startTime = 0;
-unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side
+unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side, can change to an hr to prevent false alarms?
 unsigned long cnt = 0;
 float sqLen(float v[3]) {
   return v[0]*v[0]+v[1]*v[1]+v[2]*v[2];
@@ -100,7 +101,7 @@ void setup(void) {
     dps_pressure = dps.getPressureSensor();
 
     if (! dps.begin_I2C(0x77, &Wire)) {
-      Serial.println("Bayes DPS not detected, go FY }:)");
+      Serial.println("Bayes DPS not detected");
       while (1);
     }
     dps.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
@@ -179,8 +180,8 @@ void setup(void) {
 void loop(void) {
     
     String dataBuf = "";
-    dataBuf += "time:";
-    dataBuf += String(BNO055_SAMPLERATE_DELAY_MS*cnt) + '\n';
+    dataBuf += "time (seconds since setup):";
+    dataBuf += String(BNO055_SAMPLERATE_DELAY_S*cnt) + '\n';
     cnt++;
     // could add VECTOR_ACCELEROMETER, VECTOR_MAGNETOMETER,VECTOR_GRAVITY...
     sensors_event_t orientationData, angVelocityData, linearAccelData,
@@ -221,14 +222,16 @@ void loop(void) {
     calib += "Calibration:\n";
     calib += "System:";
     calib += String(system);
-    calib += "\tGyro:";
+    calib += "  Gyro:";
     calib += String(gyro);
-    calib += "\tAccel:";
+    calib += "  Accel:";
     calib += String(accel);
-    calib += "\tMag:";
+    calib += "  Mag:";
     calib += String(mag);
+    if (!hasLaunched) {
     Serial2.println(calib);
     Serial.println(calib);
+    }
 
     dataBuf += calib + '\n';
     float temperature = 0;
@@ -240,6 +243,9 @@ void loop(void) {
     if (dps.pressureAvailable()) {
         dps_pressure->getEvent(&pressureData);
         pressure = pressureData.pressure;
+    }
+    else{
+      // Serial.println("pressure not available :(");
     }
 
     dataBuf += "temp: ";
@@ -258,21 +264,21 @@ void loop(void) {
 
     if (!hasLaunched && isArmed) {
       float *accel = linearAccelData.acceleration.v;
-      if (len(accel) > 1) { // units are SI (ms^-2)
+      if (len(accel) > 2) { // units are SI (ms^-2)
         hasLaunched = true;
+        Serial2.println("We have liftoff!");
         startTime = millis();
       }
     }
 
     if (hasLaunched && (millis() - startTime < TIME_TO_CHUTE)) {
-      Serial.println(dataBuf); // emergency print
+      Serial.println(dataBuf);
 #ifndef NOWRITE
         // if the file is available, write to it:
         if (dataFile) {
             dataFile.println(dataBuf);
             dataFile.flush();
             // print to the serial port too:
-            Serial.println(dataBuf);
         } else {
             // if the file isn't open, pop up an error:
             Serial.println("error opening file");
@@ -285,10 +291,15 @@ void loop(void) {
         Serial.print(c);
         if (c == 'a') { 
             isArmed = !isArmed;
-            Serial.print("\nArmed: ");
-            Serial.println(isArmed);
-            Serial2.print("Armed: ");
-            Serial2.println(isArmed);
+            if (isArmed){
+              Serial.println("Armed!");
+              Serial2.println("Armed!");
+            }
+            else{
+              hasLaunched = false;
+              Serial.println("Disarmed!");
+              Serial2.println("Disarmed!");
+            }
         }
     }
 
