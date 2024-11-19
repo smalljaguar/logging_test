@@ -11,6 +11,7 @@ Example code this is hacked together from:
 - BNO055 read_all_data
 - Teensy SD Datalogger
 - HC-05_ATMode
+- bmp280_sensortest
 
 Calculated data output rate:
 - Sensors outputs 3 sig figs
@@ -22,11 +23,8 @@ Calculated data output rate:
 - 5 minutes flight time (say) => no more than 2MB of logs expected
 
 TODO:
-- log relative timestamps for easier reading of logfiles by hand
-- update burn time to be more accurate
-- Debug DPS pressure sensor
-- log in CSV format
-- measure space left on disk
+- update burn time to be more accurate (Gui said shouldn't not be necessary, SD card is massive compared to logfile sizes)
+- Debug DPS pressure sensor (might be due to reading temp beforehand??)
 - store calibration with get/setSensorOffsets
 
 NB:
@@ -38,7 +36,7 @@ NB:
 - check if pinouts are configured correctly
 - NAND Flash is enabled by defining macro NANDFLASH
 - if adafruit BMP280 lib doesn't work, try DFRobot one
-
+- consider using takeforcedmeasurement if bmp doesn't work
 
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)

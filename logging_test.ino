@@ -17,17 +17,6 @@
 #endif
 
 /*
-  Stolen from adafruit examples
-  need to add logging (write to flash/microsd)
-  add bluetooth (also works over serial)
-  To use this driver you will also need to download the Adafruit_Sensor
-   library and include it in your libraries folder.
-
-   You should also assign a unique ID to this sensor for use with
-   the Adafruit Sensor API so that you can identify this particular
-   sensor in any data logs, etc.  To assign a unique ID, simply
-   provide an appropriate value in the constructor below (12345
-   is used by default in this example).
 
    Sensor Connections
    ===========
@@ -50,7 +39,6 @@
 
 /* Set the delay between fresh samples */
 uint16_t BNO055_SAMPLERATE_DELAY_MS = 1000;
-float BNO055_SAMPLERATE_DELAY_S = BNO055_SAMPLERATE_DELAY_MS / 1000;
 
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
@@ -59,7 +47,9 @@ Adafruit_DPS310 dps;
 Adafruit_Sensor *dps_temp;
 Adafruit_Sensor *dps_pressure;
 
-Adafruit_BMP280 bmp;  // I2C
+Adafruit_BMP280 bmp; // use I2C interface
+Adafruit_Sensor *bmp_temp = bmp.getTemperatureSensor();
+Adafruit_Sensor *bmp_pressure = bmp.getPressureSensor();
 
 #ifdef NANDFLASH
 LittleFS_SPINAND myfs;
@@ -74,7 +64,8 @@ bool isArmed = false;  // can change for debug purposes, NEEDS to be false for l
 bool hasLaunched = false;
 unsigned long launchTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side, can change to an hr to prevent false alarms?
-unsigned long cnt = 0;
+
+
 float sqLen(float v[3]) {
     return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 }
@@ -83,6 +74,7 @@ float len(float v[3]) {
     return sqrt(sqLen(v));
 }
 
+unsigned long MIN_STORAGE_BYTES = 1<<24;  // 16MB
 bool checkStorage() {
 #ifdef NANDFLASH
     if (myfs.totalSize() - myfs.usedSize() < MIN_STORAGE_BYTES) {
@@ -97,11 +89,11 @@ bool checkStorage() {
 }
 
 struct FlightData {
-    unsigned long timestamp;  // milliseconds since start
+    unsigned long timestamp;  // milliseconds since launch
     
     // BNO055 Sensor Data (9-axis IMU)
     struct {
-        float orientation[3];    // Euler angles (x, y, z)
+        float orientation[3];    // Euler angles (x, y, z) can change to quaternion if needed
         float angular_velocity[3]; // Gyroscope data (x, y, z)
         float linear_acceleration[3]; // Linear acceleration (x, y, z)
         float magnetometer[3];   // Magnetometer readings (x, y, z)
@@ -179,24 +171,24 @@ void collectSensorData(FlightData& data) {
     data.bno055.board_temperature = bno.getTemp();
     
     // DPS310 Sensor Readings
-    sensors_event_t tempData, pressureData;
+    sensors_event_t dpsTempData, dpsPressureData;
     
     if (dps.temperatureAvailable()) {
-        dps_temp->getEvent(&tempData);
-        data.dps310.temperature = tempData.temperature;
+        dps_temp->getEvent(&dpsTempData);
+        data.dps310.temperature = dpsTempData.temperature;
     }
     
     if (dps.pressureAvailable()) {
-        dps_pressure->getEvent(&pressureData);
-        data.dps310.pressure = pressureData.pressure;
+        dps_pressure->getEvent(&dpsPressureData);
+        data.dps310.pressure = dpsPressureData.pressure;
     }
     
     // BMP280 Sensor Readings
-    if (bmp.takeForcedMeasurement()) {
-        data.bmp280.temperature = bmp.readTemperature();
-        data.bmp280.pressure = bmp.readPressure();
-        data.bmp280.altitude = bmp.readAltitude(1013.25); // Adjusted to local forecast
-    }
+    sensors_event_t bmpTempData, bmpPressureData;
+    bmp_temp->getEvent(&bmpTempData);
+    bmp_pressure->getEvent(&bmpPressureData);
+    data.bmp280.temperature = bmpTempData.temperature;
+    data.bmp280.pressure = bmpPressureData.pressure;
 }
 
 void setup(void) {
@@ -214,7 +206,6 @@ void setup(void) {
     if (!bno.begin()) {
         Serial.println("No BNO055 detected ... Check your wiring or I2C ADDR!");
     }
-    // default accelerometer range is 4G, can be changed with setAccelerometerRange
 
     dps_temp = dps.getTemperatureSensor();
     dps_pressure = dps.getPressureSensor();
@@ -287,24 +278,22 @@ void setup(void) {
     
     char baseFilename[16] = "datalog-";
     char filename[16];
-    int fileCnt = 0;
+    unsigned int fileCnt = 0;
+    unsigned int maxFileCnt = 256;
 #ifdef NANDFLASH
-    // TODO
     do {
         sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
         fileCnt++;
-    } while (myfs.exists(filename) && fileCnt < 50);
+    } while (myfs.exists(filename) && fileCnt < maxFileCnt);
     dataFile = myfs.open(filename, FILE_WRITE);
 #else
     do {
         sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
         fileCnt++;
-    } while (SD.exists(filename) && fileCnt < 50);
+    } while (SD.exists(filename) && fileCnt < maxFileCnt);
     dataFile = SD.open(filename, FILE_WRITE);
 #endif
-    if (fileCnt > 50) {
-        Serial.println("Are you sure you're okay with this many files?");
-    }
+
     Serial.println("file opened, fileCnt=");
     Serial.println(fileCnt);
     Serial.print("filename=");
@@ -563,8 +552,4 @@ String printEventToStr(sensors_event_t *event) {
     dataBuf += '\n';
 
     return dataBuf;
-}
-
-void printEvent(sensors_event_t *event) {
-    Serial.print(printEventToStr(event));
 }
