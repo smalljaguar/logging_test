@@ -24,7 +24,7 @@ Calculated data output rate:
 TODO:
 - log relative timestamps for easier reading of logfiles by hand
 - update burn time to be more accurate
-- add pressure sensor support
+- Debug DPS pressure sensor
 - log in CSV format
 - measure space left on disk
 - store calibration with get/setSensorOffsets
@@ -37,6 +37,8 @@ NB:
   could just log both, idk if there's a better way to handle this
 - check if pinouts are configured correctly
 - NAND Flash is enabled by defining macro NANDFLASH
+- if adafruit BMP280 lib doesn't work, try DFRobot one
+
 
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
@@ -90,3 +92,8 @@ Accl:	x= -0.16 |	y= -0.90 |	z= 9.74
 
 
 https://www.pjrc.com/teensy/td_uart.html
+
+CSV Format:
+field_a,field_b,field_c
+item_a,item_b,item_c
+...
