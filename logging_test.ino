@@ -117,9 +117,9 @@ struct FlightData {
     } bmp280;
 };
 
-void collectSensorData(FlightData& data) {
+void collectSensorData(struct FlightData& flight_data) {
     // Timestamp
-    data.timestamp = millis();
+    flight_data.timestamp = millis();
     
     // BNO055 Sensor Readings
     sensors_event_t orientationData, angVelocityData, linearAccelData,
@@ -127,68 +127,68 @@ void collectSensorData(FlightData& data) {
     
     // Orientation (Euler angles)
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
-    data.bno055.orientation[0] = orientationData.orientation.x;
-    data.bno055.orientation[1] = orientationData.orientation.y;
-    data.bno055.orientation[2] = orientationData.orientation.z;
+    flight_data.bno055.orientation[0] = orientationData.orientation.x;
+    flight_data.bno055.orientation[1] = orientationData.orientation.y;
+    flight_data.bno055.orientation[2] = orientationData.orientation.z;
     
     // Angular Velocity (Gyroscope)
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
-    data.bno055.angular_velocity[0] = angVelocityData.gyro.x;
-    data.bno055.angular_velocity[1] = angVelocityData.gyro.y;
-    data.bno055.angular_velocity[2] = angVelocityData.gyro.z;
+    flight_data.bno055.angular_velocity[0] = angVelocityData.gyro.x;
+    flight_data.bno055.angular_velocity[1] = angVelocityData.gyro.y;
+    flight_data.bno055.angular_velocity[2] = angVelocityData.gyro.z;
     
     // Linear Acceleration
     bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
-    data.bno055.linear_acceleration[0] = linearAccelData.acceleration.x;
-    data.bno055.linear_acceleration[1] = linearAccelData.acceleration.y;
-    data.bno055.linear_acceleration[2] = linearAccelData.acceleration.z;
+    flight_data.bno055.linear_acceleration[0] = linearAccelData.acceleration.x;
+    flight_data.bno055.linear_acceleration[1] = linearAccelData.acceleration.y;
+    flight_data.bno055.linear_acceleration[2] = linearAccelData.acceleration.z;
     
     // Magnetometer
     bno.getEvent(&magnetometerData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
-    data.bno055.magnetometer[0] = magnetometerData.magnetic.x;
-    data.bno055.magnetometer[1] = magnetometerData.magnetic.y;
-    data.bno055.magnetometer[2] = magnetometerData.magnetic.z;
+    flight_data.bno055.magnetometer[0] = magnetometerData.magnetic.x;
+    flight_data.bno055.magnetometer[1] = magnetometerData.magnetic.y;
+    flight_data.bno055.magnetometer[2] = magnetometerData.magnetic.z;
     
     // Raw Accelerometer
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    data.bno055.accelerometer[0] = accelerometerData.acceleration.x;
-    data.bno055.accelerometer[1] = accelerometerData.acceleration.y;
-    data.bno055.accelerometer[2] = accelerometerData.acceleration.z;
+    flight_data.bno055.accelerometer[0] = accelerometerData.acceleration.x;
+    flight_data.bno055.accelerometer[1] = accelerometerData.acceleration.y;
+    flight_data.bno055.accelerometer[2] = accelerometerData.acceleration.z;
     
     // Gravity Vector
     bno.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
-    data.bno055.gravity[0] = gravityData.acceleration.x;
-    data.bno055.gravity[1] = gravityData.acceleration.y;
-    data.bno055.gravity[2] = gravityData.acceleration.z;
+    flight_data.bno055.gravity[0] = gravityData.acceleration.x;
+    flight_data.bno055.gravity[1] = gravityData.acceleration.y;
+    flight_data.bno055.gravity[2] = gravityData.acceleration.z;
     
     // Calibration Levels
-    bno.getCalibration(&data.bno055.calibration[0], 
-                       &data.bno055.calibration[1], 
-                       &data.bno055.calibration[2], 
-                       &data.bno055.calibration[3]);
+    bno.getCalibration(&flight_data.bno055.calibration[0], 
+                       &flight_data.bno055.calibration[1], 
+                       &flight_data.bno055.calibration[2], 
+                       &flight_data.bno055.calibration[3]);
     
     // Board Temperature (optional)
-    data.bno055.board_temperature = bno.getTemp();
+    flight_data.bno055.board_temperature = bno.getTemp();
     
     // DPS310 Sensor Readings
     sensors_event_t dpsTempData, dpsPressureData;
     
     if (dps.temperatureAvailable()) {
         dps_temp->getEvent(&dpsTempData);
-        data.dps310.temperature = dpsTempData.temperature;
+        flight_data.dps310.temperature = dpsTempData.temperature;
     }
     
     if (dps.pressureAvailable()) {
         dps_pressure->getEvent(&dpsPressureData);
-        data.dps310.pressure = dpsPressureData.pressure;
+        flight_data.dps310.pressure = dpsPressureData.pressure;
     }
     
     // BMP280 Sensor Readings
     sensors_event_t bmpTempData, bmpPressureData;
     bmp_temp->getEvent(&bmpTempData);
     bmp_pressure->getEvent(&bmpPressureData);
-    data.bmp280.temperature = bmpTempData.temperature;
-    data.bmp280.pressure = bmpPressureData.pressure;
+    flight_data.bmp280.temperature = bmpTempData.temperature;
+    flight_data.bmp280.pressure = bmpPressureData.pressure;
 }
 
 void setup(void) {
@@ -230,7 +230,7 @@ void setup(void) {
                     Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
     Serial2.begin(9600);
-    startTime = millis();
+    int startTime = millis();
     while (!Serial2) {
         if (millis() - startTime > 5000) {
             Serial.println("Failed to connect to Serial2!");
@@ -325,6 +325,9 @@ void loop(void) {
         Serial2.println(calib);
         Serial.println(calib);
     }
+    
+    sensors_event_t linearAccelData;
+    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
 
     float *acceleration = linearAccelData.acceleration.v;
     Serial2.print("Accel magnitude: ");
@@ -346,11 +349,11 @@ void loop(void) {
     }
 
     if (hasLaunched && (millis() - launchTime < TIME_TO_CHUTE)) {
-        FlightData data;
-        collectSensorData(data);
-        String dataBuf = serializeFlightData(data);
+        FlightData flight_data;
+        collectSensorData(flight_data);
+        String dataBuf = serializeFlightData(flight_data);
         Serial.println(dataBuf);
-        String csvData = serializeToCSV(data);
+        String csvData = serializeToCSV(flight_data);
 #ifndef NOWRITE
         // if the file is available, write to it:
         if (dataFile) {
@@ -384,102 +387,102 @@ void loop(void) {
 }
 
 
-String serializeFlightData(const FlightData& data) {
+String serializeFlightData(struct FlightData& flight_data) {
     String output = "";
     
     // Timestamp
-    output += "Timestamp: " + String(data.timestamp) + "\n";
+    output += "Timestamp: " + String(flight_data.timestamp) + "\n";
     
     // BNO055 Data
     output += "BNO055 Orientation: " 
-             + String(data.bno055.orientation[0]) + "," 
-             + String(data.bno055.orientation[1]) + "," 
-             + String(data.bno055.orientation[2]) + "\n";
+             + String(flight_data.bno055.orientation[0]) + "," 
+             + String(flight_data.bno055.orientation[1]) + "," 
+             + String(flight_data.bno055.orientation[2]) + "\n";
     
     output += "BNO055 Linear Acceleration: " 
-             + String(data.bno055.linear_acceleration[0]) + "," 
-             + String(data.bno055.linear_acceleration[1]) + "," 
-             + String(data.bno055.linear_acceleration[2]) + "\n";
+             + String(flight_data.bno055.linear_acceleration[0]) + "," 
+             + String(flight_data.bno055.linear_acceleration[1]) + "," 
+             + String(flight_data.bno055.linear_acceleration[2]) + "\n";
     
     output += "BNO055 Angular Velocity: "
-                + String(data.bno055.angular_velocity[0]) + ","
-                + String(data.bno055.angular_velocity[1]) + ","
-                + String(data.bno055.angular_velocity[2]) + "\n";
+                + String(flight_data.bno055.angular_velocity[0]) + ","
+                + String(flight_data.bno055.angular_velocity[1]) + ","
+                + String(flight_data.bno055.angular_velocity[2]) + "\n";
     
-    output += "calibration: " 
-             + "system:" + String(data.bno055.calibration[0]) + "," 
-             + "gyro:"   + String(data.bno055.calibration[1]) + "," 
-             + "accel:"  + String(data.bno055.calibration[2]) + "," 
-             + "mag:"    + String(data.bno055.calibration[3]) + "\n";
+    output += "calibration:\n" 
+               "system:" + String(flight_data.bno055.calibration[0]) + "," 
+             + "gyro:"   + String(flight_data.bno055.calibration[1]) + "," 
+             + "accel:"  + String(flight_data.bno055.calibration[2]) + "," 
+             + "mag:"    + String(flight_data.bno055.calibration[3]) + "\n";
 
-    output += "BNO055 Board Temperature: " + String(data.bno055.board_temperature) + "\n";
+    output += "BNO055 Board Temperature: " + String(flight_data.bno055.board_temperature) + "\n";
 
     // DPS310 Data
-    output += "DPS310 Temperature: " + String(data.dps310.temperature) + "\n";
-    output += "DPS310 Pressure: " + String(data.dps310.pressure) + "\n";
+    output += "DPS310 Temperature: " + String(flight_data.dps310.temperature) + "\n";
+    output += "DPS310 Pressure: " + String(flight_data.dps310.pressure) + "\n";
 
     // BMP280 Data
-    output += "BMP280 Temperature: " + String(data.bmp280.temperature) + "\n";
-    output += "BMP280 Pressure: " + String(data.bmp280.pressure) + "\n";
-    output += "BMP280 Altitude: " + String(data.bmp280.altitude) + "\n";
+    output += "BMP280 Temperature: " + String(flight_data.bmp280.temperature) + "\n";
+    output += "BMP280 Pressure: " + String(flight_data.bmp280.pressure) + "\n";
+    output += "BMP280 Altitude: " + String(flight_data.bmp280.altitude) + "\n";
 
     return output;
 }
 
 
-String serializeToCSV(const FlightData& data) {
+String serializeToCSV(struct FlightData& flight_data) {
     // Create a CSV string with all sensor data
     String csvLine = 
         // Timestamp
-        String(data.timestamp) + "," +
+        String(flight_data.timestamp) + "," +
         
         // BNO055 Orientation (Euler angles)
-        String(data.bno055.orientation[0]) + "," +
-        String(data.bno055.orientation[1]) + "," +
-        String(data.bno055.orientation[2]) + "," +
+        String(flight_data.bno055.orientation[0]) + "," +
+        String(flight_data.bno055.orientation[1]) + "," +
+        String(flight_data.bno055.orientation[2]) + "," +
         
         // Angular Velocity
-        String(data.bno055.angular_velocity[0]) + "," +
-        String(data.bno055.angular_velocity[1]) + "," +
-        String(data.bno055.angular_velocity[2]) + "," +
+        String(flight_data.bno055.angular_velocity[0]) + "," +
+        String(flight_data.bno055.angular_velocity[1]) + "," +
+        String(flight_data.bno055.angular_velocity[2]) + "," +
         
         // Linear Acceleration
-        String(data.bno055.linear_acceleration[0]) + "," +
-        String(data.bno055.linear_acceleration[1]) + "," +
-        String(data.bno055.linear_acceleration[2]) + "," +
+        String(flight_data.bno055.linear_acceleration[0]) + "," +
+        String(flight_data.bno055.linear_acceleration[1]) + "," +
+        String(flight_data.bno055.linear_acceleration[2]) + "," +
         
         // Magnetometer
-        String(data.bno055.magnetometer[0]) + "," +
-        String(data.bno055.magnetometer[1]) + "," +
-        String(data.bno055.magnetometer[2]) + "," +
+        String(flight_data.bno055.magnetometer[0]) + "," +
+        String(flight_data.bno055.magnetometer[1]) + "," +
+        String(flight_data.bno055.magnetometer[2]) + "," +
         
         // Raw Accelerometer
-        String(data.bno055.accelerometer[0]) + "," +
-        String(data.bno055.accelerometer[1]) + "," +
-        String(data.bno055.accelerometer[2]) + "," +
+        String(flight_data.bno055.accelerometer[0]) + "," +
+        String(flight_data.bno055.accelerometer[1]) + "," +
+        String(flight_data.bno055.accelerometer[2]) + "," +
         
         // Gravity Vector
-        String(data.bno055.gravity[0]) + "," +
-        String(data.bno055.gravity[1]) + "," +
-        String(data.bno055.gravity[2]) + "," +
+        String(flight_data.bno055.gravity[0]) + "," +
+        String(flight_data.bno055.gravity[1]) + "," +
+        String(flight_data.bno055.gravity[2]) + "," +
         
         // Calibration Levels
-        String(data.bno055.calibration[0]) + "," +
-        String(data.bno055.calibration[1]) + "," +
-        String(data.bno055.calibration[2]) + "," +
-        String(data.bno055.calibration[3]) + "," +
+        String(flight_data.bno055.calibration[0]) + "," +
+        String(flight_data.bno055.calibration[1]) + "," +
+        String(flight_data.bno055.calibration[2]) + "," +
+        String(flight_data.bno055.calibration[3]) + "," +
         
         // Board Temperature
-        String(data.bno055.board_temperature) + "," +
+        String(flight_data.bno055.board_temperature) + "," +
         
         // DPS310 Sensor Data
-        String(data.dps310.temperature) + "," +
-        String(data.dps310.pressure) + "," +
+        String(flight_data.dps310.temperature) + "," +
+        String(flight_data.dps310.pressure) + "," +
         
         // BMP280 Sensor Data
-        String(data.bmp280.temperature) + "," +
-        String(data.bmp280.pressure) + "," +
-        String(data.bmp280.altitude);
+        String(flight_data.bmp280.temperature) + "," +
+        String(flight_data.bmp280.pressure) + "," +
+        String(flight_data.bmp280.altitude);
     
     return csvLine;
 }
@@ -487,7 +490,7 @@ String serializeToCSV(const FlightData& data) {
 // Optional: CSV Header Generation Function
 String generateCSVHeader() {
     return 
-        "Timestamp," +
+        String("Timestamp,") +
         "BNO055_Orientation_X,BNO055_Orientation_Y,BNO055_Orientation_Z," +
         "BNO055_AngularVelocity_X,BNO055_AngularVelocity_Y,BNO055_AngularVelocity_Z," +
         "BNO055_LinearAccel_X,BNO055_LinearAccel_Y,BNO055_LinearAccel_Z," +
