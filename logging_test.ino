@@ -172,16 +172,18 @@ void collectSensorData(struct FlightData& flight_data) {
     
     // DPS310 Sensor Readings
     sensors_event_t dpsTempData, dpsPressureData;
-    
-    if (dps.temperatureAvailable()) {
-        dps_temp->getEvent(&dpsTempData);
-        flight_data.dps310.temperature = dpsTempData.temperature;
+
+    if (int(millis()/1000) % 2 == 0){
+      if (dps.temperatureAvailable()) {
+          dps_temp->getEvent(&dpsTempData);
+          flight_data.dps310.temperature = dpsTempData.temperature;
+      }
     }
-    
-    if (dps.pressureAvailable()) {
-        dps_pressure->getEvent(&dpsPressureData);
-        flight_data.dps310.pressure = dpsPressureData.pressure;
-    }
+    else{
+      if (dps.pressureAvailable()) {
+          dps_pressure->getEvent(&dpsPressureData);
+          flight_data.dps310.pressure = dpsPressureData.pressure;
+    }}
     
     // BMP280 Sensor Readings
     sensors_event_t bmpTempData, bmpPressureData;
@@ -209,7 +211,7 @@ void setup(void) {
 
     dps_temp = dps.getTemperatureSensor();
     dps_pressure = dps.getPressureSensor();
-
+  
     if (!dps.begin_I2C(0x77, &Wire)) {
         Serial.println("Bayes DPS not detected");
         while (1);
@@ -217,7 +219,7 @@ void setup(void) {
     dps.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
     dps.configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
 
-    if (!bmp.begin()) {
+    if (!bmp.begin(0x76,88)) {
         Serial.println("Could not find a valid BMP280 sensor!");
         while (1) delay(10);
     }
@@ -337,7 +339,7 @@ void loop(void) {
 
     if (!hasLaunched && isArmed) {
         float *accel = linearAccelData.acceleration.v;
-        if (len(accel) > 2 && len(accel) < 150) {  // units are SI (ms^-2), 150 is sanity check
+        if (len(accel) > 0 && len(accel) < 150) {  // units are SI (ms^-2), 150 is sanity check
             hasLaunched = true;
             Serial2.println("We have liftoff!");
             launchTime = millis();
@@ -490,7 +492,7 @@ String serializeToCSV(struct FlightData& flight_data) {
 // Optional: CSV Header Generation Function
 String generateCSVHeader() {
     return 
-        String("Timestamp,") +
+        String("Timestamp,") + // String call necessary for making sure type coercion works
         "BNO055_Orientation_X,BNO055_Orientation_Y,BNO055_Orientation_Z," +
         "BNO055_AngularVelocity_X,BNO055_AngularVelocity_Y,BNO055_AngularVelocity_Z," +
         "BNO055_LinearAccel_X,BNO055_LinearAccel_Y,BNO055_LinearAccel_Z," +

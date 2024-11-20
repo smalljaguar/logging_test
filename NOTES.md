@@ -37,7 +37,8 @@ NB:
 - NAND Flash is enabled by defining macro NANDFLASH
 - if adafruit BMP280 lib doesn't work, try DFRobot one
 - consider using takeforcedmeasurement if bmp doesn't work
-
+- units are all SI (ms^-1, ms^-2, Pa)
+- DPS310 fails to return pressure if temperature has been read recently 
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
 - log getCalibration only when it's not 3 and/or it changes, and/or at a slower rate
@@ -95,3 +96,8 @@ CSV Format:
 field_a,field_b,field_c
 item_a,item_b,item_c
 ...
+
+I2C device found at address 0x28 
+I2C device found at address 0x76  
+I2C device found at address 0x77  
+
