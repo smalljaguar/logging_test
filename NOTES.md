@@ -13,6 +13,11 @@ Example code this is hacked together from:
 - HC-05_ATMode
 - bmp280_sensortest
 
+Datasheets:
+- [DPS310](https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242)
+- [BNO055](https://cdn-shop.adafruit.com/datasheets/BST_BNO055_DS000_12.pdf)
+- [BMP280](https://cdn-shop.adafruit.com/datasheets/BST-BMP280-DS001-11.pdf)
+
 Calculated data output rate:
 - Sensors outputs 3 sig figs
 - we are logging x,y,z for orientation, angular velocity, acceleration 
@@ -24,8 +29,9 @@ Calculated data output rate:
 
 TODO:
 - update burn time to be more accurate (Gui said shouldn't not be necessary, SD card is massive compared to logfile sizes)
-- Debug DPS pressure sensor (might be due to reading temp beforehand??)
+- DPS now working but BMP temp stuck, need to fix
 - store calibration with get/setSensorOffsets
+- json/protobuf/writing raw bytes to file as an option
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
@@ -43,7 +49,6 @@ Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
 - log getCalibration only when it's not 3 and/or it changes, and/or at a slower rate
 - preallocate estimated string len
-- truncate logged decimal places (second param of `String` is decimalPlaces)
 Medium optimisations:
 - switch from SD lib to SDFAT which uses exFAT, buffers things for you
 - instead of creating new buffer string each time, reuse the same one, clearing it at the end of each loop
@@ -74,21 +79,6 @@ Output Data:
 
 
 --
-example data
-
-SysCal: 2 AccelCal: 0 MagCal: 0
-
-Orient:	x= 0.94 |	y= -1.00 |	z= 6.12
-
-Gyro:	x= -0.00 |	y= -0.00 |	z= 0.00
-
-Linear:	x= 0.01 |	y= 0.13 |	z= 0.00
-
-Mag:	x= 4.88 |	y= 33.38 |	z= -34.75
-
-Accl:	x= -0.16 |	y= -0.90 |	z= 9.74
-
-
 
 https://www.pjrc.com/teensy/td_uart.html
 

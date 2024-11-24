@@ -355,6 +355,7 @@ void loop(void) {
         collectSensorData(flight_data);
         String dataBuf = serializeFlightData(flight_data);
         Serial.println(dataBuf);
+        Serial2.println(dataBuf);
         String csvData = serializeToCSV(flight_data);
 #ifndef NOWRITE
         // if the file is available, write to it:
