@@ -31,7 +31,7 @@ TODO:
 - update burn time to be more accurate (Gui said shouldn't not be necessary, SD card is massive compared to logfile sizes)
 - DPS now working but BMP temp stuck, need to fix
 - store calibration with get/setSensorOffsets
-- json/protobuf/writing raw bytes to file as an option
+- test csv/json/raw bytes decoding to see if reliable
 
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
@@ -45,6 +45,9 @@ NB:
 - consider using takeforcedmeasurement if bmp doesn't work
 - units are all SI (ms^-1, ms^-2, Pa)
 - DPS310 fails to return pressure if temperature has been read recently 
+- If uploading fails try other usb-c port
+- ON LAUNCH DISABLE SERIAL PRINTS!!
+
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)
 - log getCalibration only when it's not 3 and/or it changes, and/or at a slower rate
@@ -53,8 +56,7 @@ Medium optimisations:
 - switch from SD lib to SDFAT which uses exFAT, buffers things for you
 - instead of creating new buffer string each time, reuse the same one, clearing it at the end of each loop
 - compress logs somehow
-Complex optimisations:
-- switch to binary logging format with separate decoding
+- protobuf/actual libs for serialisation
 
 
 BNO055 Info

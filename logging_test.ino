@@ -47,7 +47,7 @@ Adafruit_DPS310 dps;
 Adafruit_Sensor *dps_temp;
 Adafruit_Sensor *dps_pressure;
 
-Adafruit_BMP280 bmp; // use I2C interface
+Adafruit_BMP280 bmp;  // use I2C interface
 Adafruit_Sensor *bmp_temp = bmp.getTemperatureSensor();
 Adafruit_Sensor *bmp_pressure = bmp.getPressureSensor();
 
@@ -65,7 +65,6 @@ bool hasLaunched = false;
 unsigned long launchTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side, can change to an hr to prevent false alarms?
 
-
 float sqLen(float v[3]) {
     return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 }
@@ -74,7 +73,7 @@ float len(float v[3]) {
     return sqrt(sqLen(v));
 }
 
-unsigned long MIN_STORAGE_BYTES = 1<<24;  // 16MB
+unsigned long MIN_STORAGE_BYTES = 1 << 24;  // 16MB
 bool checkStorage() {
 #ifdef NANDFLASH
     if (myfs.totalSize() - myfs.usedSize() < MIN_STORAGE_BYTES) {
@@ -90,25 +89,26 @@ bool checkStorage() {
 
 struct FlightData {
     unsigned long timestamp;  // milliseconds since launch
-    
+
     // BNO055 Sensor Data (9-axis IMU)
     struct {
-        float orientation[3];    // Euler angles (x, y, z) can change to quaternion if needed
-        float angular_velocity[3]; // Gyroscope data (x, y, z)
-        float linear_acceleration[3]; // Linear acceleration (x, y, z)
-        float magnetometer[3];   // Magnetometer readings (x, y, z)
-        float accelerometer[3];  // Raw accelerometer data (x, y, z)
-        float gravity[3];        // Gravity vector (x, y, z)
-        uint8_t calibration[4];  // Calibration levels [system, gyro, accel, mag]
-        int8_t board_temperature; // BNO055 board temperature
+        float orientation[3];          // Euler angles (x, y, z) can change to quaternion if needed
+        float angular_velocity[3];     // Gyroscope data (x, y, z)
+        float linear_acceleration[3];  // Linear acceleration (x, y, z)
+        float magnetometer[3];         // Magnetometer readings (x, y, z)
+        float accelerometer[3];        // Raw accelerometer data (x, y, z)
+        float gravity[3];              // Gravity vector (x, y, z)
+        uint8_t calibration[4];        // Calibration levels [system, gyro, accel, mag]
+        int8_t board_temperature;      // BNO055 board temperature
     } bno055;
-    
+    // 3 bytes padding here to stay aligned to 4-byte boundary
+
     // DPS310 Sensor Data
     struct {
         float temperature;  // Temperature reading
         float pressure;     // Pressure reading
     } dps310;
-    
+
     // BMP280 Sensor Data
     struct {
         float temperature;  // Temperature reading
@@ -117,74 +117,76 @@ struct FlightData {
     } bmp280;
 };
 
-void collectSensorData(struct FlightData& flight_data) {
+void collectSensorData(struct FlightData &flight_data) {
     // Timestamp
     flight_data.timestamp = millis();
-    
+
     // BNO055 Sensor Readings
     sensors_event_t orientationData, angVelocityData, linearAccelData,
-                    magnetometerData, accelerometerData, gravityData;
-    
+        magnetometerData, accelerometerData, gravityData;
+
     // Orientation (Euler angles)
     bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
     flight_data.bno055.orientation[0] = orientationData.orientation.x;
     flight_data.bno055.orientation[1] = orientationData.orientation.y;
     flight_data.bno055.orientation[2] = orientationData.orientation.z;
-    
+
     // Angular Velocity (Gyroscope)
     bno.getEvent(&angVelocityData, Adafruit_BNO055::VECTOR_GYROSCOPE);
     flight_data.bno055.angular_velocity[0] = angVelocityData.gyro.x;
     flight_data.bno055.angular_velocity[1] = angVelocityData.gyro.y;
     flight_data.bno055.angular_velocity[2] = angVelocityData.gyro.z;
-    
+
     // Linear Acceleration
     bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
     flight_data.bno055.linear_acceleration[0] = linearAccelData.acceleration.x;
     flight_data.bno055.linear_acceleration[1] = linearAccelData.acceleration.y;
     flight_data.bno055.linear_acceleration[2] = linearAccelData.acceleration.z;
-    
+
     // Magnetometer
     bno.getEvent(&magnetometerData, Adafruit_BNO055::VECTOR_MAGNETOMETER);
     flight_data.bno055.magnetometer[0] = magnetometerData.magnetic.x;
     flight_data.bno055.magnetometer[1] = magnetometerData.magnetic.y;
     flight_data.bno055.magnetometer[2] = magnetometerData.magnetic.z;
-    
+
     // Raw Accelerometer
     bno.getEvent(&accelerometerData, Adafruit_BNO055::VECTOR_ACCELEROMETER);
     flight_data.bno055.accelerometer[0] = accelerometerData.acceleration.x;
     flight_data.bno055.accelerometer[1] = accelerometerData.acceleration.y;
     flight_data.bno055.accelerometer[2] = accelerometerData.acceleration.z;
-    
+
     // Gravity Vector
     bno.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
     flight_data.bno055.gravity[0] = gravityData.acceleration.x;
     flight_data.bno055.gravity[1] = gravityData.acceleration.y;
     flight_data.bno055.gravity[2] = gravityData.acceleration.z;
-    
+
     // Calibration Levels
-    bno.getCalibration(&flight_data.bno055.calibration[0], 
-                       &flight_data.bno055.calibration[1], 
-                       &flight_data.bno055.calibration[2], 
+    bno.getCalibration(&flight_data.bno055.calibration[0],
+                       &flight_data.bno055.calibration[1],
+                       &flight_data.bno055.calibration[2],
                        &flight_data.bno055.calibration[3]);
-    
+
     // Board Temperature (optional)
     flight_data.bno055.board_temperature = bno.getTemp();
-    
+
     // DPS310 Sensor Readings
     sensors_event_t dpsTempData, dpsPressureData;
 
-    if (int(millis()/1000) % 2 == 0){
-      if (dps.temperatureAvailable()) {
-          dps_temp->getEvent(&dpsTempData);
-          flight_data.dps310.temperature = dpsTempData.temperature;
-      }
+    // I really don't like this, but it doesn't work without this
+    // might have to make something better for higher frequency readings
+    if (int(millis() / 1000) % 2 == 0) {
+        if (dps.temperatureAvailable()) {
+            dps_temp->getEvent(&dpsTempData);
+            flight_data.dps310.temperature = dpsTempData.temperature;
+        }
+    } else {
+        if (dps.pressureAvailable()) {
+            dps_pressure->getEvent(&dpsPressureData);
+            flight_data.dps310.pressure = dpsPressureData.pressure;
+        }
     }
-    else{
-      if (dps.pressureAvailable()) {
-          dps_pressure->getEvent(&dpsPressureData);
-          flight_data.dps310.pressure = dpsPressureData.pressure;
-    }}
-    
+
     // BMP280 Sensor Readings
     sensors_event_t bmpTempData, bmpPressureData;
     bmp_temp->getEvent(&bmpTempData);
@@ -211,7 +213,7 @@ void setup(void) {
 
     dps_temp = dps.getTemperatureSensor();
     dps_pressure = dps.getPressureSensor();
-  
+
     if (!dps.begin_I2C(0x77, &Wire)) {
         Serial.println("Bayes DPS not detected");
         while (1);
@@ -219,7 +221,7 @@ void setup(void) {
     dps.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
     dps.configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
 
-    if (!bmp.begin(0x76,88)) {
+    if (!bmp.begin(0x76, 88)) {
         Serial.println("Could not find a valid BMP280 sensor!");
         while (1) delay(10);
     }
@@ -231,7 +233,7 @@ void setup(void) {
                     Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                     Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
-    Serial2.begin(9600);
+    Serial2.begin(9600);  // attempt to set this to 115200 (should work automagically?)
     int startTime = millis();
     while (!Serial2) {
         if (millis() - startTime > 5000) {
@@ -277,7 +279,7 @@ void setup(void) {
             // Flash error, so don't do anything more - stay stuck here
         }
     }
-    
+
     char baseFilename[16] = "datalog-";
     char filename[16];
     unsigned int fileCnt = 0;
@@ -305,7 +307,6 @@ void setup(void) {
 }
 
 void loop(void) {
-    
     /*
     defines calibration level where 0 is uncalibrated, 3 is fully calibrated
     calibration is done automatically, so not too much we can do about it
@@ -327,7 +328,7 @@ void loop(void) {
         Serial2.println(calib);
         Serial.println(calib);
     }
-    
+
     sensors_event_t linearAccelData;
     bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
 
@@ -353,10 +354,11 @@ void loop(void) {
     if (hasLaunched && (millis() - launchTime < TIME_TO_CHUTE)) {
         FlightData flight_data;
         collectSensorData(flight_data);
-        String dataBuf = serializeFlightData(flight_data);
+        // MAKE SURE TO DISABLE FOR LAUNCH!!
+        String dataBuf = serialiseFlightData(flight_data);
         Serial.println(dataBuf);
         Serial2.println(dataBuf);
-        String csvData = serializeToCSV(flight_data);
+        String csvData = serialiseToCSV(flight_data);
 #ifndef NOWRITE
         // if the file is available, write to it:
         if (dataFile) {
@@ -389,34 +391,23 @@ void loop(void) {
     delay(BNO055_SAMPLERATE_DELAY_MS);
 }
 
-
-String serializeFlightData(struct FlightData& flight_data) {
+String serialiseFlightData(struct FlightData &flight_data) {
     String output = "";
-    
+
     // Timestamp
     output += "Timestamp: " + String(flight_data.timestamp) + "\n";
-    
+
     // BNO055 Data
-    output += "BNO055 Orientation: " 
-             + String(flight_data.bno055.orientation[0]) + "," 
-             + String(flight_data.bno055.orientation[1]) + "," 
-             + String(flight_data.bno055.orientation[2]) + "\n";
-    
-    output += "BNO055 Linear Acceleration: " 
-             + String(flight_data.bno055.linear_acceleration[0]) + "," 
-             + String(flight_data.bno055.linear_acceleration[1]) + "," 
-             + String(flight_data.bno055.linear_acceleration[2]) + "\n";
-    
-    output += "BNO055 Angular Velocity: "
-                + String(flight_data.bno055.angular_velocity[0]) + ","
-                + String(flight_data.bno055.angular_velocity[1]) + ","
-                + String(flight_data.bno055.angular_velocity[2]) + "\n";
-    
-    output += "calibration:\n" 
-               "system:" + String(flight_data.bno055.calibration[0]) + "," 
-             + "gyro:"   + String(flight_data.bno055.calibration[1]) + "," 
-             + "accel:"  + String(flight_data.bno055.calibration[2]) + "," 
-             + "mag:"    + String(flight_data.bno055.calibration[3]) + "\n";
+    output += "BNO055 Orientation: " + String(flight_data.bno055.orientation[0]) + "," + String(flight_data.bno055.orientation[1]) + "," + String(flight_data.bno055.orientation[2]) + "\n";
+
+    output += "BNO055 Linear Acceleration: " + String(flight_data.bno055.linear_acceleration[0]) + "," + String(flight_data.bno055.linear_acceleration[1]) + "," + String(flight_data.bno055.linear_acceleration[2]) + "\n";
+
+    output += "BNO055 Angular Velocity: " + String(flight_data.bno055.angular_velocity[0]) + "," + String(flight_data.bno055.angular_velocity[1]) + "," + String(flight_data.bno055.angular_velocity[2]) + "\n";
+
+    output +=
+        "calibration:\n"
+        "system:" +
+        String(flight_data.bno055.calibration[0]) + "," + "gyro:" + String(flight_data.bno055.calibration[1]) + "," + "accel:" + String(flight_data.bno055.calibration[2]) + "," + "mag:" + String(flight_data.bno055.calibration[3]) + "\n";
 
     output += "BNO055 Board Temperature: " + String(flight_data.bno055.board_temperature) + "\n";
 
@@ -432,80 +423,126 @@ String serializeFlightData(struct FlightData& flight_data) {
     return output;
 }
 
-
-String serializeToCSV(struct FlightData& flight_data) {
+String serialiseToCSV(struct FlightData &flight_data) {
     // Create a CSV string with all sensor data
-    String csvLine = 
+    String csvLine =
         // Timestamp
         String(flight_data.timestamp) + "," +
-        
+
         // BNO055 Orientation (Euler angles)
         String(flight_data.bno055.orientation[0]) + "," +
         String(flight_data.bno055.orientation[1]) + "," +
         String(flight_data.bno055.orientation[2]) + "," +
-        
+
         // Angular Velocity
         String(flight_data.bno055.angular_velocity[0]) + "," +
         String(flight_data.bno055.angular_velocity[1]) + "," +
         String(flight_data.bno055.angular_velocity[2]) + "," +
-        
+
         // Linear Acceleration
         String(flight_data.bno055.linear_acceleration[0]) + "," +
         String(flight_data.bno055.linear_acceleration[1]) + "," +
         String(flight_data.bno055.linear_acceleration[2]) + "," +
-        
+
         // Magnetometer
         String(flight_data.bno055.magnetometer[0]) + "," +
         String(flight_data.bno055.magnetometer[1]) + "," +
         String(flight_data.bno055.magnetometer[2]) + "," +
-        
+
         // Raw Accelerometer
         String(flight_data.bno055.accelerometer[0]) + "," +
         String(flight_data.bno055.accelerometer[1]) + "," +
         String(flight_data.bno055.accelerometer[2]) + "," +
-        
+
         // Gravity Vector
         String(flight_data.bno055.gravity[0]) + "," +
         String(flight_data.bno055.gravity[1]) + "," +
         String(flight_data.bno055.gravity[2]) + "," +
-        
+
         // Calibration Levels
         String(flight_data.bno055.calibration[0]) + "," +
         String(flight_data.bno055.calibration[1]) + "," +
         String(flight_data.bno055.calibration[2]) + "," +
         String(flight_data.bno055.calibration[3]) + "," +
-        
+
         // Board Temperature
         String(flight_data.bno055.board_temperature) + "," +
-        
+
         // DPS310 Sensor Data
         String(flight_data.dps310.temperature) + "," +
         String(flight_data.dps310.pressure) + "," +
-        
+
         // BMP280 Sensor Data
         String(flight_data.bmp280.temperature) + "," +
         String(flight_data.bmp280.pressure) + "," +
         String(flight_data.bmp280.altitude);
-    
+
     return csvLine;
+}
+
+String serialiseVecToJSON(float vec3[3]) {
+    String json = "{";
+    json += "\"x\": " + String(vec3[0]) + ",";
+    json += "\"y\": " + String(vec3[1]) + ",";
+    json += "\"z\": " + String(vec3[2]);
+    json += "}";
+    return json;
+}
+
+String serialiseToJSON(struct FlightData &flight_data) {
+    String json = "{";
+    json += "\"timestamp\": " + String(flight_data.timestamp) + ",";
+    json += "\"bno055\": {";
+    json += "\"orientation\": " + serialiseVecToJSON(flight_data.bno055.orientation) + ",";
+    json += "\"angular_velocity\": " + serialiseVecToJSON(flight_data.bno055.angular_velocity) + ",";
+    json += "\"linear_acceleration\": " + serialiseVecToJSON(flight_data.bno055.linear_acceleration) + ",";
+    json += "\"magnetometer\": " + serialiseVecToJSON(flight_data.bno055.magnetometer) + ",";
+    json += "\"accelerometer\": " + serialiseVecToJSON(flight_data.bno055.accelerometer) + ",";
+    json += "\"gravity\": " + serialiseVecToJSON(flight_data.bno055.gravity) + ",";
+    json += "\"calibration\": {";
+    json += "\"system\": " + String(flight_data.bno055.calibration[0]) + ",";
+    json += "\"gyro\": " + String(flight_data.bno055.calibration[1]) + ",";
+    json += "\"accel\": " + String(flight_data.bno055.calibration[2]) + ",";
+    json += "\"mag\": " + String(flight_data.bno055.calibration[3]);
+    json += "},";
+    json += "\"board_temperature\": " + String(flight_data.bno055.board_temperature);
+    json += "},";
+    json += "\"dps310\": {";
+    json += "\"temperature\": " + String(flight_data.dps310.temperature) + ",";
+    json += "\"pressure\": " + String(flight_data.dps310.pressure);
+    json += "},";
+    json += "\"bmp280\": {";
+    json += "\"temperature\": " + String(flight_data.bmp280.temperature) + ",";
+    json += "\"pressure\": " + String(flight_data.bmp280.pressure) + ",";
+    json += "\"altitude\": " + String(flight_data.bmp280.altitude);
+    json += "}";
+    json += "}";
+    return json;
+}
+
+// use write instead of print to avoid null terminator
+unsigned char *serialiseToRaw(struct FlightData &flight_data) {
+    unsigned char *rawData = (unsigned char *)malloc(sizeof(struct FlightData));
+    memcpy(rawData, &flight_data, sizeof(struct FlightData));
+    return rawData;
 }
 
 // Optional: CSV Header Generation Function
 String generateCSVHeader() {
-    return 
-        String("Timestamp,") + // String call necessary for making sure type coercion works
-        "BNO055_Orientation_X,BNO055_Orientation_Y,BNO055_Orientation_Z," +
-        "BNO055_AngularVelocity_X,BNO055_AngularVelocity_Y,BNO055_AngularVelocity_Z," +
-        "BNO055_LinearAccel_X,BNO055_LinearAccel_Y,BNO055_LinearAccel_Z," +
-        "BNO055_Magnetometer_X,BNO055_Magnetometer_Y,BNO055_Magnetometer_Z," +
-        "BNO055_Accelerometer_X,BNO055_Accelerometer_Y,BNO055_Accelerometer_Z," +
-        "BNO055_Gravity_X,BNO055_Gravity_Y,BNO055_Gravity_Z," +
-        "BNO055_Calib_System,BNO055_Calib_Gyro,BNO055_Calib_Accel,BNO055_Calib_Mag," +
-        "BNO055_BoardTemp," +
-        "DPS310_Temperature,DPS310_Pressure," +
-        "BMP280_Temperature,BMP280_Pressure,BMP280_Altitude";
+    return String("Timestamp,") +  // String call necessary for making sure type coercion works
+           "BNO055_Orientation_X,BNO055_Orientation_Y,BNO055_Orientation_Z," +
+           "BNO055_AngularVelocity_X,BNO055_AngularVelocity_Y,BNO055_AngularVelocity_Z," +
+           "BNO055_LinearAccel_X,BNO055_LinearAccel_Y,BNO055_LinearAccel_Z," +
+           "BNO055_Magnetometer_X,BNO055_Magnetometer_Y,BNO055_Magnetometer_Z," +
+           "BNO055_Accelerometer_X,BNO055_Accelerometer_Y,BNO055_Accelerometer_Z," +
+           "BNO055_Gravity_X,BNO055_Gravity_Y,BNO055_Gravity_Z," +
+           "BNO055_Calib_System,BNO055_Calib_Gyro,BNO055_Calib_Accel,BNO055_Calib_Mag," +
+           "BNO055_BoardTemp," +
+           "DPS310_Temperature,DPS310_Pressure," +
+           "BMP280_Temperature,BMP280_Pressure,BMP280_Altitude";
 }
 
+// String serialiseToJSON(struct FlightData& flight_data) {}
 
 String printEventToStr(sensors_event_t *event) {
     String dataBuf = "";
