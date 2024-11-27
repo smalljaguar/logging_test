@@ -45,8 +45,9 @@ NB:
 - consider using takeforcedmeasurement if bmp doesn't work
 - units are all SI (ms^-1, ms^-2, Pa)
 - DPS310 fails to return pressure if temperature has been read recently 
-- If uploading fails try other usb-c port
+- If uploading fails try other usb-c port on laptop (I think one might be power-only)
 - ON LAUNCH DISABLE SERIAL PRINTS!!
+- 500 bytes per sample, at 10Hz and 1GB max log size that gives 48 hours which means totally fine
 
 Simple optimisations:
 - If running out of space in RAM, try wrapping constant strings in `F` macro which puts them in flash (read-only)

@@ -38,7 +38,7 @@
 */
 
 /* Set the delay between fresh samples */
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 1000;
+uint16_t SAMPLERATE_DELAY_MS = 2000;
 
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
@@ -46,6 +46,7 @@ Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
 Adafruit_DPS310 dps;
 Adafruit_Sensor *dps_temp;
 Adafruit_Sensor *dps_pressure;
+float seaLevelPressure = 0;
 
 Adafruit_BMP280 bmp;  // use I2C interface
 Adafruit_Sensor *bmp_temp = bmp.getTemperatureSensor();
@@ -60,7 +61,7 @@ const int chipSelect = BUILTIN_SDCARD;  // hopefully works
 
 File dataFile;
 
-bool isArmed = false;  // can change for debug purposes, NEEDS to be false for launch
+bool isArmed = true;  // can change for debug purposes, NEEDS to be false for launch
 bool hasLaunched = false;
 unsigned long launchTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side, can change to an hr to prevent false alarms?
@@ -172,27 +173,35 @@ void collectSensorData(struct FlightData &flight_data) {
 
     // DPS310 Sensor Readings
     sensors_event_t dpsTempData, dpsPressureData;
+    sensors_event_t bmpTempData = {0}, bmpPressureData = {0};
 
     // I really don't like this, but it doesn't work without this
     // might have to make something better for higher frequency readings
-    if (int(millis() / 1000) % 2 == 0) {
+    if (int(millis() / SAMPLERATE_DELAY_MS) % 2 == 0) {
         if (dps.temperatureAvailable()) {
             dps_temp->getEvent(&dpsTempData);
             flight_data.dps310.temperature = dpsTempData.temperature;
+        }
+        else {
+          Serial.println("DPS Temp not available!");
         }
     } else {
         if (dps.pressureAvailable()) {
             dps_pressure->getEvent(&dpsPressureData);
             flight_data.dps310.pressure = dpsPressureData.pressure;
+            
+        }
+        else {
+          Serial.println("DPS pressure not available!");
         }
     }
 
     // BMP280 Sensor Readings
-    sensors_event_t bmpTempData, bmpPressureData;
     bmp_temp->getEvent(&bmpTempData);
-    bmp_pressure->getEvent(&bmpPressureData);
     flight_data.bmp280.temperature = bmpTempData.temperature;
+    bmp_pressure->getEvent(&bmpPressureData);
     flight_data.bmp280.pressure = bmpPressureData.pressure;
+    flight_data.bmp280.altitude = bmp.readAltitude(seaLevelPressure);
 }
 
 void setup(void) {
@@ -218,20 +227,21 @@ void setup(void) {
         Serial.println("Bayes DPS not detected");
         while (1);
     }
-    dps.configurePressure(DPS310_64HZ, DPS310_64SAMPLES);
-    dps.configureTemperature(DPS310_64HZ, DPS310_64SAMPLES);
+    // TODO: configure this maybe
+    dps.configurePressure(DPS310_64HZ, DPS310_16SAMPLES);
+    dps.configureTemperature(DPS310_64HZ, DPS310_2SAMPLES);
 
     if (!bmp.begin(0x76, 88)) {
         Serial.println("Could not find a valid BMP280 sensor!");
         while (1) delay(10);
     }
 
-    /* Default settings from datasheet. */
-    bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
+    /* settings from datasheet for handheld-device low power, n.b. default settings were returning stale data */
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                     Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                     Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                    Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+                    Adafruit_BMP280::FILTER_X4,      /* Filtering. */
+                    Adafruit_BMP280::STANDBY_MS_63); /* Standby time. */
 
     Serial2.begin(9600);  // attempt to set this to 115200 (should work automagically?)
     int startTime = millis();
@@ -286,13 +296,13 @@ void setup(void) {
     unsigned int maxFileCnt = 256;
 #ifdef NANDFLASH
     do {
-        sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
+        sprintf(filename, "%s%d.json", baseFilename, fileCnt);
         fileCnt++;
     } while (myfs.exists(filename) && fileCnt < maxFileCnt);
     dataFile = myfs.open(filename, FILE_WRITE);
 #else
     do {
-        sprintf(filename, "%s%d.txt", baseFilename, fileCnt);
+        sprintf(filename, "%s%d.json", baseFilename, fileCnt);
         fileCnt++;
     } while (SD.exists(filename) && fileCnt < maxFileCnt);
     dataFile = SD.open(filename, FILE_WRITE);
@@ -340,29 +350,29 @@ void loop(void) {
 
     if (!hasLaunched && isArmed) {
         float *accel = linearAccelData.acceleration.v;
-        if (len(accel) > 0 && len(accel) < 150) {  // units are SI (ms^-2), 150 is sanity check
+        if (len(accel) > 10 && len(accel) < 200) {  // units are SI (ms^-2), 150 is sanity check
             hasLaunched = true;
             Serial2.println("We have liftoff!");
             launchTime = millis();
-
             if (dataFile) {
-                dataFile.println(generateCSVHeader());
+                // dataFile.println(generateCSVHeader());
             }
         }
     }
 
     if (hasLaunched && (millis() - launchTime < TIME_TO_CHUTE)) {
-        FlightData flight_data;
+        FlightData flight_data = {0};
         collectSensorData(flight_data);
         // MAKE SURE TO DISABLE FOR LAUNCH!!
         String dataBuf = serialiseFlightData(flight_data);
         Serial.println(dataBuf);
         Serial2.println(dataBuf);
-        String csvData = serialiseToCSV(flight_data);
+        // String csvData = serialiseToCSV(flight_data);
+        String JSONData = serialiseToJSON(flight_data);
 #ifndef NOWRITE
         // if the file is available, write to it:
         if (dataFile) {
-            dataFile.println(csvData);
+            dataFile.println(JSONData);
             dataFile.flush();
             // print to the serial port too:
         } else {
@@ -380,6 +390,9 @@ void loop(void) {
             if (isArmed) {
                 Serial.println("Armed!");
                 Serial2.println("Armed!");
+                FlightData flight_data = {0};
+                collectSensorData(flight_data);
+                seaLevelPressure = bmp.seaLevelForAltitude(250, flight_data.bmp280.pressure); /* fairley moor height is 250m */
             } else {
                 hasLaunched = false;
                 Serial.println("Disarmed!");
@@ -388,7 +401,7 @@ void loop(void) {
         }
     }
 
-    delay(BNO055_SAMPLERATE_DELAY_MS);
+    delay(SAMPLERATE_DELAY_MS);
 }
 
 String serialiseFlightData(struct FlightData &flight_data) {
@@ -398,11 +411,11 @@ String serialiseFlightData(struct FlightData &flight_data) {
     output += "Timestamp: " + String(flight_data.timestamp) + "\n";
 
     // BNO055 Data
-    output += "BNO055 Orientation: " + String(flight_data.bno055.orientation[0]) + "," + String(flight_data.bno055.orientation[1]) + "," + String(flight_data.bno055.orientation[2]) + "\n";
+    // output += "BNO055 Orientation: " + String(flight_data.bno055.orientation[0]) + "," + String(flight_data.bno055.orientation[1]) + "," + String(flight_data.bno055.orientation[2]) + "\n";
 
-    output += "BNO055 Linear Acceleration: " + String(flight_data.bno055.linear_acceleration[0]) + "," + String(flight_data.bno055.linear_acceleration[1]) + "," + String(flight_data.bno055.linear_acceleration[2]) + "\n";
+    // output += "BNO055 Linear Acceleration: " + String(flight_data.bno055.linear_acceleration[0]) + "," + String(flight_data.bno055.linear_acceleration[1]) + "," + String(flight_data.bno055.linear_acceleration[2]) + "\n";
 
-    output += "BNO055 Angular Velocity: " + String(flight_data.bno055.angular_velocity[0]) + "," + String(flight_data.bno055.angular_velocity[1]) + "," + String(flight_data.bno055.angular_velocity[2]) + "\n";
+    // output += "BNO055 Angular Velocity: " + String(flight_data.bno055.angular_velocity[0]) + "," + String(flight_data.bno055.angular_velocity[1]) + "," + String(flight_data.bno055.angular_velocity[2]) + "\n";
 
     output +=
         "calibration:\n"
