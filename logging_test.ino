@@ -173,30 +173,35 @@ void collectSensorData(struct FlightData &flight_data) {
 
     // DPS310 Sensor Readings
     sensors_event_t dpsTempData, dpsPressureData;
-    sensors_event_t bmpTempData = {0}, bmpPressureData = {0};
 
     // I really don't like this, but it doesn't work without this
     // might have to make something better for higher frequency readings
-    if (int(millis() / SAMPLERATE_DELAY_MS) % 2 == 0) {
-        if (dps.temperatureAvailable()) {
-            dps_temp->getEvent(&dpsTempData);
-            flight_data.dps310.temperature = dpsTempData.temperature;
-        }
-        else {
-          Serial.println("DPS Temp not available!");
-        }
-    } else {
-        if (dps.pressureAvailable()) {
-            dps_pressure->getEvent(&dpsPressureData);
-            flight_data.dps310.pressure = dpsPressureData.pressure;
+    // if (int(millis() / SAMPLERATE_DELAY_MS) % 2 == 0) {
+    //     if (dps.temperatureAvailable()) {
+    //         dps_temp->getEvent(&dpsTempData);
+    //         flight_data.dps310.temperature = dpsTempData.temperature;
+    //     }
+    //     else {
+    //       Serial.println("DPS Temp not available!");
+    //     }
+    // } else {
+    //     if (dps.pressureAvailable()) {
+    //         dps_pressure->getEvent(&dpsPressureData);
+    //         flight_data.dps310.pressure = dpsPressureData.pressure;
             
-        }
-        else {
-          Serial.println("DPS pressure not available!");
-        }
-    }
+    //     }
+    //     else {
+    //       Serial.println("DPS pressure not available!");
+    //     }
+    // }
+
+    dps.getEvents(&dpsTempData, &dpsPressureData);
+    flight_data.dps310.pressure = dpsPressureData.pressure
+    flight_data.dps310.temperature = dpsTempData.temperature
+    
 
     // BMP280 Sensor Readings
+    sensors_event_t bmpTempData, bmpPressureData;
     bmp_temp->getEvent(&bmpTempData);
     flight_data.bmp280.temperature = bmpTempData.temperature;
     bmp_pressure->getEvent(&bmpPressureData);
@@ -230,6 +235,8 @@ void setup(void) {
     // TODO: configure this maybe
     dps.configurePressure(DPS310_64HZ, DPS310_16SAMPLES);
     dps.configureTemperature(DPS310_64HZ, DPS310_2SAMPLES);
+    dps.setMode(DPS310_CONT_PRESTEMP); // think this is default but ... who knows
+
 
     if (!bmp.begin(0x76, 88)) {
         Serial.println("Could not find a valid BMP280 sensor!");
