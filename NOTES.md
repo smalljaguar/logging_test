@@ -32,7 +32,8 @@ TODO:
 - DPS now working but BMP temp stuck, need to fix
 - store calibration with get/setSensorOffsets
 - test csv/json/raw bytes decoding to see if reliable
-
+- Long term:
+    - move struct definition, utility functions to header
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
   (max sensor freq is 100Hz)
