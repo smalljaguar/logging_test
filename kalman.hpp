@@ -1,3 +1,4 @@
+#pragma once
 /* matrix library */
 #include <BasicLinearAlgebra.h>
 

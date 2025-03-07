@@ -24,7 +24,7 @@ const int chipSelect = BUILTIN_SDCARD;  // hopefully works
 File dataFile;
 
 bool isArmed = true;  // can change for debug purposes, NEEDS to be false for launch
-bool hasLaunched = false;
+bool hasLaunched = true;
 unsigned long launchTime = 0;
 unsigned long TIME_TO_CHUTE = 5 * 60 * 1000;  // 5 minutes to stay on safe side, can change to an hr to prevent false alarms?
 
@@ -46,9 +46,8 @@ bool checkStorage() {
 
 void setup(void) {
     Serial.begin(115200);
+    pinMode(LED_BUILTIN, OUTPUT);
 
-    // while (!Serial)
-    //     delay(10); /* wait for serial port to open */
     // waiting is actually unnecessary, as when the board is used in flight
     // the serial port will not be connected, so we can just start the loop
 
@@ -85,8 +84,10 @@ void setup(void) {
                     Adafruit_BMP280::FILTER_X4,      /* Filtering. */
                     Adafruit_BMP280::STANDBY_MS_1); /* Standby time. */
 
+    // int startTime = millis();
+    
     Serial2.begin(9600);  // attempt to set this to 115200 (should work automagically?)
-    int startTime = millis();
+    /*
     while (!Serial2) {
         if (millis() - startTime > 5000) {
             Serial.println("Failed to connect to Serial2!");
@@ -102,7 +103,7 @@ void setup(void) {
         delay(10);
     };
     Serial.println("Bluetooth connected");
-
+  */
 #ifdef NANDFLASH
     // SPI port param is optional
     if (!myfs.begin(chipSelect, SPI)) {
@@ -164,6 +165,7 @@ void loop(void) {
     calibration is done automatically, so not too much we can do about it
     might not want to log every cycle, feels a bit noisy, perhaps only if it changes and/or if it's not 3?
     */
+    Serial.println("Line 169");
     uint8_t system, gyro, accel, mag = 0;
     bno.getCalibration(&system, &gyro, &accel, &mag);
     String calib = "";
@@ -180,7 +182,6 @@ void loop(void) {
         Serial2.println(calib);
         Serial.println(calib);
     }
-
     sensors_event_t linearAccelData;
     bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
 
@@ -189,7 +190,6 @@ void loop(void) {
     Serial.print("Accel magnitude: ");
     Serial2.println(magnitude(acceleration));
     Serial.println(magnitude(acceleration));
-
     if (!hasLaunched && isArmed) {
         float *accel = linearAccelData.acceleration.v;
         if (magnitude(accel) > 10 && magnitude(accel) < 200) {  // units are SI (ms^-2), 150 is sanity check
@@ -201,14 +201,15 @@ void loop(void) {
             }
         }
     }
-
-    if (hasLaunched && (millis() - launchTime < TIME_TO_CHUTE)) {
+    if (hasLaunched) {
         FlightData flight_data = {0};
+        Serial.println("about to collect sensor data");
         collectSensorData(flight_data);
+        Serial.println("sensor data collected");
         // MAKE SURE TO DISABLE FOR LAUNCH!!
         String dataBuf = serialiseFlightData(flight_data);
         Serial.println(dataBuf);
-        Serial2.println(dataBuf);
+        // Serial2.println(dataBuf);
         // String csvData = serialiseToCSV(flight_data);
         String JSONData = serialiseToJSON(flight_data);
 #ifndef NOWRITE
@@ -216,6 +217,7 @@ void loop(void) {
         if (dataFile) {
             dataFile.println(JSONData);
             dataFile.flush();
+            digitalWrite(LED_BUILTIN, HIGH);
             // print to the serial port too:
         } else {
             // if the file isn't open, pop up an error:
@@ -224,24 +226,29 @@ void loop(void) {
 #endif
     }
 
-    if (Serial2.available()) {
-        char c = Serial2.read();
-        Serial.print(c);
-        if (c == 'a') {
-            isArmed = !isArmed;
-            if (isArmed) {
-                Serial.println("Armed!");
-                Serial2.println("Armed!");
-                FlightData flight_data = {0};
-                collectSensorData(flight_data);
-                seaLevelPressure = bmp.seaLevelForAltitude(250, flight_data.bmp280.pressure); /* fairley moor height is 250m */
-            } else {
-                hasLaunched = false;
-                Serial.println("Disarmed!");
-                Serial2.println("Disarmed!");
-            }
-        }
-    }
+    
+    // if (Serial2.available()) {
+    //     char c = Serial2.read();
+    //     Serial.print(c);
+    //     if (c == 'a') {
+    //         isArmed = !isArmed;
+    //         if (isArmed) {
+    //             Serial.println("Armed!");
+    //             Serial2.println("Armed!");
+    //             FlightData flight_data = {0};
+    //             collectSensorData(flight_data);
+    //             seaLevelPressure = bmp.seaLevelForAltitude(250, flight_data.bmp280.pressure); /* fairley moor height is 250m */
+    //         } else {
+    //             hasLaunched = false;
+    //             Serial.println("Disarmed!");
+    //             Serial2.println("Disarmed!");
+    //         }
+    //     }
+    // }
+    
 
-    delay(SAMPLERATE_DELAY_MS);
+    delay(SAMPLERATE_DELAY_MS/2);
+    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
+    delay(SAMPLERATE_DELAY_MS/2);
+
 }

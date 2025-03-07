@@ -29,7 +29,7 @@
 */
 
 /* Set the delay between fresh samples */
-uint16_t SAMPLERATE_DELAY_MS = 2000;
+uint16_t SAMPLERATE_DELAY_MS = 50;
 
 //                                   id, address
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
