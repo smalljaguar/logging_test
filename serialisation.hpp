@@ -126,7 +126,7 @@ String serialiseToJSON(struct FlightData &flight_data) {
     json += "\"bmp280\": {";
     json += "\"temperature\": " + String(flight_data.bmp280.temperature) + ",";
     json += "\"pressure\": " + String(flight_data.bmp280.pressure) + ",";
-    json += "\"altitude\": " + String(flight_data.bmp280.altitude);
+    // json += "\"altitude\": " + String(flight_data.bmp280.altitude);
     json += "}";
     json += "}";
     return json;
@@ -150,7 +150,7 @@ String generateCSVHeader() {
            "BNO055_Gravity_X,BNO055_Gravity_Y,BNO055_Gravity_Z," +
            "BNO055_Calib_System,BNO055_Calib_Gyro,BNO055_Calib_Accel,BNO055_Calib_Mag," +
            "BNO055_BoardTemp," +
-           "DPS310_Temperature,DPS310_Pressure," +
+           "DPS310_Temperature,DPS310_Pressure,"
            "BMP280_Temperature,BMP280_Pressure,BMP280_Altitude";
 }
 
