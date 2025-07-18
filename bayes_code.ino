@@ -3,6 +3,8 @@
 #include "serialisation.hpp"
 #include "sensors.hpp"
 #include "utils.hpp"
+#include "pid.hpp"
+#include "servos.hpp"
 
 /* for logging */
 #define NOWRITE
@@ -107,7 +109,7 @@ void loop(void) {
     calibration is done automatically, so not too much we can do about it
     might not want to log every cycle, feels a bit noisy, perhaps only if it changes and/or if it's not 3?
     */
-    int loopStart = millis()
+    int loopStart = millis();
     uint8_t system, gyro, accel, mag = 0;
     bno.getCalibration(&system, &gyro, &accel, &mag);
     char calib[128];
@@ -140,7 +142,7 @@ void loop(void) {
         }
     }
     
-    int delay = SAMPLERATE_DELAY_MS-(millis()-loopStart);
-    delay(delay);
+    int delay_time = SAMPLERATE_DELAY_MS-(millis()-loopStart);
+    delay(delay_time);
     digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
 }
