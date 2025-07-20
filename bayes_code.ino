@@ -6,19 +6,16 @@
 #include "pid.hpp"
 #include "servos.hpp"
 
-/* for logging */
-#define NOWRITE
 #include <SD.h>
 #include <SPI.h>
 
 
 // IMU: clock 19 and data 18 
 
+bool servosEnabled;
+bool hasLaunched;
 const int chipSelect = BUILTIN_SDCARD;
-
 File dataFile;
-
-bool hasLaunched = true;
 
 unsigned long MIN_STORAGE_BYTES = 1 << 24;  // 16MB
 
@@ -29,15 +26,10 @@ bool checkStorage() {
     return true;
 }
 
-// Adafruit_BNO055 bno = Adafruit_BNO055();
-
 void setup(void) {
   
     Serial.begin(115200);
     pinMode(LED_BUILTIN, OUTPUT);
-
-    // waiting is actually unnecessary, as when the board is used in flight
-    // the serial port will not be connected, so we can just start the loop
 
     Serial.println("Orientation Sensor Initialising\n");
 
@@ -53,7 +45,7 @@ void setup(void) {
         Serial.println("DPS not detected");
         while (1);
     }
-    // TODO: configure this maybe
+    // TODO: optimise this maybe
     dps.configurePressure(DPS310_128HZ, DPS310_16SAMPLES);
     dps.configureTemperature(DPS310_128HZ, DPS310_2SAMPLES);
     dps.setMode(DPS310_CONT_PRESTEMP); // think this is default but ... who knows
@@ -100,6 +92,18 @@ void setup(void) {
     Serial.print("filename=");
     Serial.println(filename);
 
+    
+    servosEnabled = true;
+    hasLaunched = false;
+
+    // servo test
+    testServo(servo1,1);
+    testServo(servo2,2);
+    testServo(servo3,3);
+    testServo(servo4,4);
+
+
+
     delay(1000);
 }
 
@@ -109,26 +113,38 @@ void loop(void) {
     calibration is done automatically, so not too much we can do about it
     might not want to log every cycle, feels a bit noisy, perhaps only if it changes and/or if it's not 3?
     */
-    int loopStart = millis();
+    int currTime = millis();
     uint8_t system, gyro, accel, mag = 0;
     bno.getCalibration(&system, &gyro, &accel, &mag);
     char calib[128];
     sprintf(calib,"Calibration:\nSystem: %d  Gyro: %d  Accel: %d  Mag: %d", system, gyro, accel, mag);
-    if (!hasLaunched) {
-        Serial.println(calib);
-    }
-    sensors_event_t linearAccelData;
-    bno.getEvent(&linearAccelData, Adafruit_BNO055::VECTOR_LINEARACCEL);
 
-    float *acceleration = linearAccelData.acceleration.v;
-    Serial.print("Accel magnitude: ");
-    Serial.println(magnitude(acceleration));
-    if (hasLaunched) {
+
+    if (!hasLaunched){
+        // check
         FlightData flight_data = {0};
-        Serial.println("about to collect sensor data");
         collectSensorData(flight_data);
-        Serial.println("sensor data collected");
-        String dataBuf = serialiseFlightData(flight_data);
+        if (magnitude(flight_data.bno055.linear_acceleration) > 20){ // more than 2gs of acceleration
+            hasLaunched = true;
+        }
+    }
+
+    if (servosEnabled && hasLaunched){
+        FlightData flight_data = {0};
+        collectSensorData(flight_data);
+        if (isUnsafe(flight_data)){
+            servosEnabled = false;
+        }
+        float *angles = findCanardAngles(flight_data);
+        writeServos(angles);
+    }
+    
+    if ((currTime - millis()) > SAMPLERATE_DELAY_MS){
+        currTime = millis();
+        
+        FlightData flight_data = {0};
+        collectSensorData(flight_data);
+        
         String JSONData = serialiseToJSON(flight_data);
         Serial.println(JSONData);
         // if the file is available, write to it:
@@ -142,7 +158,6 @@ void loop(void) {
         }
     }
     
-    int delay_time = SAMPLERATE_DELAY_MS-(millis()-loopStart);
-    delay(delay_time);
+    
     digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
 }

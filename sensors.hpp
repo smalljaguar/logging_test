@@ -163,3 +163,17 @@ void collectSensorData(struct FlightData &flight_data) {
     flight_data.bmp280.pressure = bmpPressureData.pressure;
     flight_data.bmp280.altitude = bmp.readAltitude(seaLevelPressure);
 }
+
+bool isUnsafe(struct FlightData &flight_data) {
+    float *gravity = flight_data.bno055.gravity;
+    float maxsq = 0;
+    float mag = 0;
+    for (int i = 0; i < 3; i++){
+        float g = gravity[i]*gravity[i];
+        if (g > maxsq){
+            maxsq = g;
+        }
+        mag += g;
+    }
+    return maxsq/mag < .98; 
+}

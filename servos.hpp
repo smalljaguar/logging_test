@@ -9,11 +9,36 @@ Servo servo3;
 Servo servo4;
 
 void initServos(){
-    // TODO: Correct pin vals
-    servo1.attach(15);
-    servo2.attach(16);
-    servo3.attach(17);
-    servo4.attach(18);
+    // TODO: check if pin vals correct 
+    servo1.attach(37);
+    servo2.attach(14);
+    servo3.attach(36);
+    servo4.attach(33);
+}
+
+const int MIN_ANGLE = -60;
+const int MAX_ANGLE = 60;
+const int HOME_ANGLE = 0;
+const int MOVE_DELAY = 1000; // Delay between movements (ms)
+const int SERVO_DELAY = 2000; // Delay between servo tests (ms)
+
+void testServo(Servo &servo, int servoNum) {
+  Serial.printf("Testing Servo %d:\n", servoNum);
+  
+  Serial.printf("  Moving to %d degrees\n", MIN_ANGLE);
+  servo.write(90 + MIN_ANGLE); // Convert -60 to servo range (30)
+  delay(MOVE_DELAY);
+  
+  Serial.printf("  Moving to %d degrees\n", MAX_ANGLE);
+  servo.write(90 + MAX_ANGLE); // Convert +60 to servo range (150)
+  delay(MOVE_DELAY);
+  
+  // Move to 0 degrees
+  Serial.printf("  Moving to %d degrees (home)\n", HOME_ANGLE);
+  servo.write(90 + HOME_ANGLE); // Convert 0 to servo range (90)
+  delay(MOVE_DELAY);
+  
+  Serial.printf("  Servo %d test complete\n\n", servoNum);
 }
 
 void writeServos(float *servoAngles){

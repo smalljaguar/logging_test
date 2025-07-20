@@ -28,12 +28,22 @@ Calculated data output rate:
 - 5 minutes flight time (say) => no more than 2MB of logs expected
 
 TODO:
-- update burn time to be more accurate (Gui said shouldn't not be necessary, SD card is massive compared to logfile sizes)
 - DPS now working but BMP temp stuck, need to fix
 - store calibration with get/setSensorOffsets
-- test csv/json/raw bytes decoding to see if reliable
 - Long term:
     - move struct definition, utility functions to header
+- startup sequence should include rotating servos 1-4 sequentially from 0 to -60 to 60 to 0
+- should rewrite main loop to not be "blocking"
+- set emergency fallover failsafe
+- CALIBRATE PID VALUES
+    - CALIBRATE UNSAFE ANGLE VALUE (taking into account sensor noise)
+- bluetooth stuff
+- buzzer
+
+Future things to think about:
+- new board could have remote flashing and builtin bluetooth e.g. esp32
+- could look into micropython to make code more accessible
+
 NB:
 - to change logging rate, change `BNO055_SAMPLERATE_DELAY_MS`, default is 100ms
   (max sensor freq is 100Hz)
