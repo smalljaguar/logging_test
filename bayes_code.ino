@@ -14,6 +14,7 @@
 
 bool servosEnabled;
 bool hasLaunched;
+float startTime;
 const int chipSelect = BUILTIN_SDCARD;
 File dataFile;
 
@@ -95,6 +96,7 @@ void setup(void) {
     
     servosEnabled = true;
     hasLaunched = false;
+    initServos();
 
     // servo test
     testServo(servo1,1);
@@ -126,7 +128,12 @@ void loop(void) {
         collectSensorData(flight_data);
         if (magnitude(flight_data.bno055.linear_acceleration) > 20){ // more than 2gs of acceleration
             hasLaunched = true;
+            startTime = millis();
         }
+    }
+
+    if (!servosEnabled && millis() - startTime > 2200){ // Burn time is 2.2s
+        servosEnabled = true;
     }
 
     if (servosEnabled && hasLaunched){
@@ -139,7 +146,7 @@ void loop(void) {
         writeServos(angles);
     }
     
-    if ((currTime - millis()) > SAMPLERATE_DELAY_MS){
+    if ((millis() - currTime) > SAMPLERATE_DELAY_MS){
         currTime = millis();
         
         FlightData flight_data = {0};
